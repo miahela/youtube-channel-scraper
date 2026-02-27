@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# IDE
+.idea/
+
+# Credentials — never commit these
+client_secret*.json
+
+# Generated logs
+*.log
+
+# Intermediate / generated data files
+data_s.json
+data_s2.json
+data.json
+data.txt
+failed_video_ids.txt
+response.json
+response.txt
