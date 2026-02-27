@@ -1,8 +1,8 @@
-# YouTube Channel Scraper — Bald and Bankrupt
+# YouTube Channel Scraper
 
 A Python scraper that collects complete metadata for every video on a YouTube channel using the YouTube Data API v3 and Selenium.
 
-Built as a data collection project targeting the [Bald and Bankrupt](https://www.youtube.com/@baldandbankrupt) channel. The collected dataset covers **461 unique videos** including titles, view counts, durations, chapter timestamps, and playlist associations.
+Built as a data collection project targeting a channel. The collected dataset covers **461 unique videos** including titles, view counts, durations, chapter timestamps, and playlist associations.
 
 ## Features
 
@@ -33,7 +33,7 @@ youtube-channel-scraper/
 
 ## Sample Output
 
-The `data/combined_video_data_noduplicate.csv` in this repo is the result of running `video_scraper.py` on the Bald and Bankrupt channel. Each row contains:
+The `data/combined_video_data_noduplicate.csv` in this repo is the result of running `video_scraper.py` on a channel. Each row contains:
 
 | Column | Description |
 |--------|-------------|
@@ -58,8 +58,6 @@ The `data/combined_video_data_noduplicate.csv` in this repo is the result of run
 ### Install
 
 ```bash
-git clone https://github.com/yourusername/yt-baldandbankrupt.git
-cd yt-baldandbankrupt
 pip install -r requirements.txt
 ```
 
@@ -103,6 +101,6 @@ Merges `data/data_s.json` + `data/data_s2.json` → `data/datafinal.json`
 
 ## Notes
 
-- The YouTube Data API v3 has a daily quota of 10,000 units. Scraping a large channel will consume quota quickly — plan accordingly or request a quota increase.
+- The YouTube Data API v3 has a daily quota of 10,000 units. Scraping a large channel will consume quota quickly. Plan accordingly or request a quota increase.
 - ChromeDriver version must match your installed Chrome version.
 - YouTube's UI structure changes occasionally; the Selenium selectors in `chapter_scraper.py` may need updating over time.
