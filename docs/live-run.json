@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-29",
+  "source": "User-supplied successful terminal output, checked against the saved local CSV",
+  "channel_query": "@macharavel",
+  "channel_id": "UC1aP2DAKW9utwEoHni7Mkpw",
+  "scope": {
+    "max_videos": 5,
+    "include_playlists": false
+  },
+  "result": {
+    "exit_code": 0,
+    "unique_videos_exported": 5
+  },
+  "source_csv": "output/live-20261029-221318/combined_video_data.csv",
+  "source_csv_sha256": "40281da92822bdf492db5dfca6f36fd61273133d8668e756b5a3f10b27312e4e",
+  "verified_live": [
+    "channel search",
+    "video details",
+    "CSV export"
+  ],
+  "not_tested_live": [
+    "playlist collection",
+    "browser chapter extraction"
+  ],
+  "screenshot": "Rendered terminal excerpt using the supplied output and verified CSV table; not a new API run"
+}

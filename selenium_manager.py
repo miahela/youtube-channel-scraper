@@ -6,38 +6,42 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium import webdriver
 import logging
+from selenium.common.exceptions import WebDriverException
+
+from config import load_settings
 
 
 logger = logging.getLogger("app")
 logger.setLevel(logging.INFO)  # Set level to INFO
 
-# Create formatters
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-
-# Create handlers
-info_file_handler = logging.FileHandler("info.log")
-info_file_handler.setLevel(logging.INFO)
-info_file_handler.setFormatter(formatter)
-
-error_file_handler = logging.FileHandler("error.log")
-error_file_handler.setLevel(logging.ERROR)
-error_file_handler.setFormatter(formatter)
-
-# Add handlers to logger
-logger.addHandler(info_file_handler)
-logger.addHandler(error_file_handler)
+def configure_logger(output_dir):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    for name, level in [("info.log", logging.INFO), ("error.log", logging.ERROR)]:
+        path = str((output_dir / name).resolve())
+        if not any(isinstance(h, logging.FileHandler) and h.baseFilename == path for h in logger.handlers):
+            handler = logging.FileHandler(path, encoding="utf-8")
+            handler.setLevel(level)
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
 
 
 class SeleniumManager:
-    def __init__(self):
+    def __init__(self, settings=None):
+        settings = settings or load_settings()
+        configure_logger(settings.output_dir)
         self.logger = logger
         self.logger.info("Initializing Selenium driver...")
 
         options = Options()
         self.driver = webdriver.Chrome(options=options)
-        self.driver.maximize_window()
+        try:
+            self.driver.maximize_window()
+        except WebDriverException:
+            self.driver.quit()
+            raise
 
-        self.wait = WebDriverWait(self.driver, 5)
+        self.wait = WebDriverWait(self.driver, settings.browser_wait)
 
         self.logger.info("Selenium driver initialized successfully!")
 
@@ -46,6 +50,7 @@ class SeleniumManager:
             self.driver.get(href)
         except Exception as e:
             self.logger.error(f"Error opening link: {e}")
+            raise
 
     def refresh(self):
         self.driver.refresh()

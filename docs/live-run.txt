@@ -1,0 +1,18 @@
+> .\.venv\Scripts\python.exe .\video_scraper.py
+Looking up channel '@macharavel'...
+  Resolved channel ID: UC1aP2DAKW9utwEoHni7Mkpw
+Playlist collection disabled; playlist fields will be empty.
+Fetching videos...
+  Candidate video limit: 5
+  Found 5 unique videos.
+Saved to output\live-20261029-221318\combined_video_data.csv.
+
+Exit code: 0
+
+Title                                                        ID          View Count
+------------------------------------------------------------ ----------- ----------
+Macha Ravel - Pasegoni (Official Video)                      r44_CcI7sXI 149389
+Macha Ravel - Lutkica Croatian Version (Official Visualizer) o95rXkjbjOk 117200
+Macha Ravel - Lutkica (Official Video)                       jdqp4X6KaU4 543944
+Macha Ravel - Ne Voli Me (Official Visualizer)               OIEPh9widyU 33273
+Macha Ravel - MPM (Official Video) | SARAJEVO                GusakVdYiRw 55041

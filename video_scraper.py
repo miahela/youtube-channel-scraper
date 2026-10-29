@@ -1,5 +1,5 @@
 """
-Scrapes all videos from a YouTube channel via the YouTube Data API v3.
+Collects channel video search results via the YouTube Data API v3.
 
 Outputs:
     combined_video_data.csv  —  one row per video with title, URL, view count,
@@ -8,25 +8,18 @@ Outputs:
 """
 
 import csv
-import os
 import re
 
 import googleapiclient.discovery
-from dotenv import load_dotenv
+from googleapiclient.errors import HttpError
 
-load_dotenv()
-
-API_KEY = os.environ.get("YOUTUBE_API_KEY")
-if not API_KEY:
-    raise EnvironmentError(
-        "YOUTUBE_API_KEY not set. Copy .env.example to .env and fill in your key."
-    )
+from config import load_settings
 
 
 def get_channel_id(youtube, username):
     response = (
         youtube.search()
-        .list(q=username, type="channel", part="id", maxResults=1)
+        .list(q=username, type="channel", part="snippet", maxResults=1)
         .execute()
     )
     items = response.get("items", [])
@@ -90,7 +83,7 @@ def get_channel_playlists(youtube, channel_id):
     return playlists
 
 
-def get_all_videos(youtube, channel_id, playlists):
+def get_all_videos(youtube, channel_id, playlists, max_videos=0):
     """Fetch metadata for every unique video on a channel."""
     videos = []
     seen_ids = set()
@@ -103,7 +96,7 @@ def get_all_videos(youtube, channel_id, playlists):
                 channelId=channel_id,
                 type="video",
                 part="snippet",
-                maxResults=50,
+                maxResults=min(50, max_videos) if max_videos else 50,
                 pageToken=page_token,
             )
             .execute()
@@ -115,6 +108,8 @@ def get_all_videos(youtube, channel_id, playlists):
             video_id = item["id"]["videoId"]
             if video_id in seen_ids:
                 continue
+            if max_videos and len(seen_ids) >= max_videos:
+                break
             seen_ids.add(video_id)
 
             # Fetch stats, full description, and duration in a single API call
@@ -149,6 +144,8 @@ def get_all_videos(youtube, channel_id, playlists):
                 }
             )
 
+        if max_videos and len(seen_ids) >= max_videos:
+            break
         page_token = response.get("nextPageToken")
         if not page_token:
             break
@@ -156,21 +153,30 @@ def get_all_videos(youtube, channel_id, playlists):
     return sorted(videos, key=lambda v: v["Published Date"], reverse=True)
 
 
-def scrape_channel(username):
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=API_KEY)
+def scrape_channel(username=None, settings=None):
+    settings = settings or load_settings(require_api=True)
+    username = username or settings.channel
+    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=settings.api_key)
 
     print(f"Looking up channel '{username}'...")
     channel_id = get_channel_id(youtube, username)
+    print(f"  Resolved channel ID: {channel_id}")
 
-    print("Fetching playlists...")
-    playlists = get_channel_playlists(youtube, channel_id)
-    print(f"  Found {len(playlists)} playlists.")
+    if settings.include_playlists:
+        print("Fetching playlists...")
+        playlists = get_channel_playlists(youtube, channel_id)
+        print(f"  Found {len(playlists)} playlists.")
+    else:
+        playlists = []
+        print("Playlist collection disabled; playlist fields will be empty.")
 
     print("Fetching videos...")
-    videos = get_all_videos(youtube, channel_id, playlists)
+    print(f"  Candidate video limit: {settings.max_videos or 'unlimited'}")
+    videos = get_all_videos(youtube, channel_id, playlists, max_videos=settings.max_videos)
     print(f"  Found {len(videos)} unique videos.")
 
-    output_file = "data/combined_video_data.csv"
+    output_file = settings.output_dir / "combined_video_data.csv"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "Title",
         "ID",
@@ -191,4 +197,17 @@ def scrape_channel(username):
 
 
 if __name__ == "__main__":
-    scrape_channel("baldandbankrupt")
+    try:
+        scrape_channel()
+    except HttpError as e:
+        # HttpError text can include the request URL and its API key.
+        raise SystemExit(
+            f"YouTube API request failed (HTTP {e.resp.status}). "
+            "Check API access, key restrictions, and available quota."
+        ) from None
+    except (OSError, ValueError) as e:
+        raise SystemExit(f"Setup or file error: {e}") from None
+    except (KeyError, TypeError, IndexError):
+        raise SystemExit("Unexpected YouTube response fields. No complete export was written.") from None
+    except KeyboardInterrupt:
+        raise SystemExit("Interrupted. The API export is written only after collection completes.") from None

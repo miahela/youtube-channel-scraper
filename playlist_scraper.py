@@ -6,24 +6,17 @@ Outputs:
 """
 
 import csv
-import os
 
 import googleapiclient.discovery
-from dotenv import load_dotenv
+from googleapiclient.errors import HttpError
 
-load_dotenv()
-
-API_KEY = os.environ.get("YOUTUBE_API_KEY")
-if not API_KEY:
-    raise EnvironmentError(
-        "YOUTUBE_API_KEY not set. Copy .env.example to .env and fill in your key."
-    )
+from config import load_settings
 
 
 def get_channel_id(youtube, username):
     response = (
         youtube.search()
-        .list(q=username, type="channel", part="id", maxResults=1)
+        .list(q=username, type="channel", part="snippet", maxResults=1)
         .execute()
     )
     items = response.get("items", [])
@@ -87,7 +80,7 @@ def get_playlists(youtube, channel_id):
     return playlists
 
 
-def build_video_playlist_map(youtube, channel_id, playlists):
+def build_video_playlist_map(youtube, channel_id, playlists, max_videos=0):
     """Return rows mapping each video to the playlist URLs it appears in."""
     rows = []
     page_token = None
@@ -98,7 +91,7 @@ def build_video_playlist_map(youtube, channel_id, playlists):
                 channelId=channel_id,
                 type="video",
                 part="snippet",
-                maxResults=50,
+                maxResults=min(50, max_videos) if max_videos else 50,
                 pageToken=page_token,
             )
             .execute()
@@ -116,26 +109,34 @@ def build_video_playlist_map(youtube, channel_id, playlists):
                     "Playlist URLs": ", ".join(playlist_urls),
                 }
             )
+            if max_videos and len(rows) >= max_videos:
+                return rows
         page_token = response.get("nextPageToken")
         if not page_token:
             break
     return rows
 
 
-def scrape_video_playlist_links(username):
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=API_KEY)
+def scrape_video_playlist_links(username=None, settings=None):
+    settings = settings or load_settings(require_api=True)
+    if not settings.include_playlists:
+        raise ValueError("Enable YOUTUBE_INCLUDE_PLAYLISTS to run the playlist-mapping script")
+    username = username or settings.channel
+    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=settings.api_key)
 
     print(f"Looking up channel '{username}'...")
     channel_id = get_channel_id(youtube, username)
+    print(f"  Resolved channel ID: {channel_id}")
 
     print("Fetching playlists...")
     playlists = get_playlists(youtube, channel_id)
     print(f"  Found {len(playlists)} playlists.")
 
     print("Mapping videos to playlists...")
-    rows = build_video_playlist_map(youtube, channel_id, playlists)
+    rows = build_video_playlist_map(youtube, channel_id, playlists, max_videos=settings.max_videos)
 
-    output_file = "data/video_playlist_link_data.csv"
+    output_file = settings.output_dir / "video_playlist_link_data.csv"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["Video Title", "Playlist URLs"])
         writer.writeheader()
@@ -145,4 +146,17 @@ def scrape_video_playlist_links(username):
 
 
 if __name__ == "__main__":
-    scrape_video_playlist_links("baldandbankrupt")
+    try:
+        scrape_video_playlist_links()
+    except HttpError as e:
+        # HttpError text can include the request URL and its API key.
+        raise SystemExit(
+            f"YouTube API request failed (HTTP {e.resp.status}). "
+            "Check API access, key restrictions, and available quota."
+        ) from None
+    except (OSError, ValueError) as e:
+        raise SystemExit(f"Setup or file error: {e}") from None
+    except (KeyError, TypeError, IndexError):
+        raise SystemExit("Unexpected YouTube response fields. No complete export was written.") from None
+    except KeyboardInterrupt:
+        raise SystemExit("Interrupted. The API export is written only after collection completes.") from None

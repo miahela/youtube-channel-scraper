@@ -3,6 +3,14 @@ __pycache__/
 *.pyc
 *.pyo
 venv/
+.venv/
+output/
+/outputs/
+/data/
+/data manipulations/
+/downloads/
+/runs/
+/video_ids.txt
 .env
 
 # IDE
